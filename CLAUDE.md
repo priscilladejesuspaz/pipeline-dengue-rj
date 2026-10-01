@@ -37,3 +37,11 @@ Trigger a real run: `docker compose exec airflow-scheduler airflow dags trigger 
 - The metadata DB is named `airflow` on the same Postgres, but `POSTGRES_DB` only creates `dengue_rj`; the `airflow` DB was created manually (`docker compose exec postgres createdb -U $POSTGRES_USER airflow`). A fresh `dengue_pgdata` volume needs this again before `airflow-init` succeeds.
 - `psycopg2` is in the stock image, but other dependencies (e.g. pandas) are not; a custom Dockerfile or `_PIP_ADDITIONAL_REQUIREMENTS` will be needed.
 - `.gitignore` ignores `.env`, `data/`, `logs/` and `__pycache__/`.
+
+## Etapas 2 e 3 (extração; fora do Docker)
+
+- Código em `src/pipeline_dengue/` (rodar com `PYTHONPATH=src`, venv em `.venv`, env do `.env`): `extract.py`/`load.py` (SINAN, 301.847 linhas em `raw.sinan_dengue`) e `extract_sih.py`/`load_sih.py` (SIH-RD, `python -m pipeline_dengue.load_sih` faz o backfill de 2024).
+- DDL versionado em `sql/` (`001` tabelas raw, `002` coluna `competencia` do SIH); aplicar manualmente: `docker compose exec -T postgres sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB' < sql/00X.sql`. Não há runner de migração.
+- PySUS 2.11.3 no Windows: `pysus.ftp.*` devolve vazio sem erro (o filtro de origem compara caminhos com `/` e o catálogo traz `\`). Usar `pysus.sih(...)` (depreciada). `source="origin"` também devolve 0.
+- SIH: carga por mês (DELETE + INSERT da `competencia`). Filtra CID A90/A91 e `IDENT=1` na extração (`IDENT=5` repete `N_AIH`). O arquivo "RJ" é por estabelecimento, não por residência. `data_internacao` pode ser anterior à competência (mín. 2023-10-25).
+- **Lacuna conhecida: SIH-RD RJ 2024-07.** `RDRJ2407.dbc` existe no FTP do DATASUS mas não no catálogo do PySUS; `raw.sih_dengue` tem 11 meses (7.932 linhas). O backfill registra a lacuna e segue; recarregar quando o catálogo atualizar.
