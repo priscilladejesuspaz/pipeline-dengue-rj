@@ -33,6 +33,7 @@ SQL_STG_SIH = """
         valor_total_aih
     FROM raw.sih_dengue
     WHERE municipio_residencia IS NOT NULL
+      AND left(municipio_residencia, 2) = '33'
 """
 
 SQL_STG_POPULACAO = """
