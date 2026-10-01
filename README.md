@@ -1,4 +1,4 @@
-# Pipeline de Dengue - RJ
+# Pipeline de Dengue — RJ
 
 Pipeline de dados em **Airflow + Postgres + Docker** que cruza notificações de dengue
 (SINAN), internações hospitalares por dengue (SIH-RD) e população (IBGE) do Rio de
@@ -9,7 +9,7 @@ internação, por 100 mil habitantes**.
 
 Com a temporada de dengue se aproximando (pico no Brasil entre dez-abr), interessa saber
 onde a vigilância está notificando muito mas a rede hospitalar está sentindo pouco (ou o
-contrário), um sinal de subnotificação, de gravidade localizada, ou só de diferença no
+contrário) — um sinal de subnotificação, de gravidade localizada, ou só de diferença no
 tamanho da epidemia por município.
 
 ## Fontes
@@ -20,24 +20,17 @@ tamanho da epidemia por município.
 | SIH-RD | Internações por dengue (CID A90/A91) | 1 linha por internação, mês | PySUS (espelho S3) |
 | IBGE/POPT | População estimada por município | 1 linha por município/ano | PySUS (espelho S3 + FTP) |
 
-Escopo: UF = RJ, SINAN 2024, SIH 2024 (11 de 12 meses, ver lacuna abaixo), população
+Escopo: UF = RJ, SINAN 2024, SIH 2024 (11 de 12 meses — ver lacuna abaixo), população
 2020-2025.
 
 ## Arquitetura
 
-\`\`\`
-┌─────────────┐     PySUS (venv isolada)      ┌──────────────┐
-│  DATASUS /  │ ─────────────────────────────▶ │  raw.*       │
-│  OpenDataSUS│   extract_*.py → parquet       │  (Postgres)  │
-└─────────────┘                                └──────┬───────┘
-                                                        │ staging/marts
-                                                        │ (SQL, transform.py)
-                                                        ▼
-                                                ┌──────────────┐
-                                                │ staging.*    │
-                                                │ marts.*      │
-                                                └──────────────┘
-\`\`\`
+```mermaid
+flowchart LR
+    A["DATASUS / OpenDataSUS"] -->|"PySUS (venv isolada)<br/>extract_*.py → parquet"| B["raw.*<br/>(Postgres)"]
+    B -->|"SQL · transform.py"| C["staging.*"]
+    C --> D["marts.*"]
+```
 
 Tudo orquestrado por 4 DAGs no Airflow (`dag_sinan_dengue`, `dag_sih_dengue`,
 `dag_populacao_ibge`, `dag_marts_dengue`), rodando em Docker Compose (Postgres 16 +
@@ -46,7 +39,7 @@ Airflow 3.3.2, `LocalExecutor`).
 ### Por que uma imagem Docker customizada
 
 O PySUS fixa versões de `pandas`/`typer`/`python-dateutil` incompatíveis com as que o
-Airflow 3.3.2 usa internamente, instalá-lo junto quebraria o próprio Airflow. A imagem
+Airflow 3.3.2 usa internamente — instalá-lo junto quebraria o próprio Airflow. A imagem
 roda dois Pythons: o ambiente principal do Airflow, e uma venv isolada
 (`/opt/pysus-venv`) só para o PySUS. As tasks que baixam dado (`extract_*`) rodam na venv
 isolada via `ExternalPythonOperator`; as que gravam no Postgres (`carregar_*`, e toda a
@@ -57,7 +50,7 @@ etapa de staging/marts) rodam no ambiente principal. Detalhes em [`CLAUDE.md`](C
 - **SINAN sem ID único**: o CSV público não traz `NU_NOTIFIC`. Chave sintética (hash
   SHA1 de campos que a vigilância não revisa depois) garante carga idempotente.
 - **5 linhas de município inválido no SINAN** (3 de outra UF, 1 nula, 1 com código
-  `330000`), excluídas na staging, não escondidas: ficam documentadas como achado.
+  `330000`) — excluídas na staging, não escondidas: ficam documentadas como achado.
 - **Lacuna conhecida: SIH-RD RJ 2024-07** não existe no catálogo do PySUS (embora exista
   no FTP bruto do DATASUS). A DAG trata esse mês como `skipped`, não `failed` — o
   pipeline não quebra por um mês faltante, só registra o buraco.
@@ -73,12 +66,12 @@ dez/2024), com notificações, internações, população e as duas taxas calcul
 
 ## Como rodar
 
-\`\`\`bash
+```bash
 cp .env.example .env            # trocar POSTGRES_PASSWORD
 docker compose build
 docker compose up airflow-init  # migração do metadata DB do Airflow
 docker compose up -d
-\`\`\`
+```
 
 UI do Airflow: http://localhost:8080 (usuário `airflow`; senha gerada, ver
 `docker compose logs airflow-api-server | grep -i password`).
