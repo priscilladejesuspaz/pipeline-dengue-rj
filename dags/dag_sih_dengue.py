@@ -19,7 +19,6 @@ from airflow.sdk import dag, task
 log = logging.getLogger(__name__)
 
 PYSUS_PYTHON = "/opt/pysus-venv/bin/python"
-ANO = 2024
 MESES = list(range(1, 13))
 
 
@@ -32,7 +31,7 @@ MESES = list(range(1, 13))
 )
 def dag_sih_dengue():
     @task.external_python(python=PYSUS_PYTHON, max_active_tis_per_dag=1)  # DuckDB do PySUS: 1 por vez
-    def extrair(mes: int, ano: int = ANO, uf: str = "RJ") -> dict:
+    def extrair(mes: int, ano: int = 2024, uf: str = "RJ") -> dict:
         from pipeline_dengue.extract_sih import ArquivoIndisponivel, extrair_sih_mes
 
         try:

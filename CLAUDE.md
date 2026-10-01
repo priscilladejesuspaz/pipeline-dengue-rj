@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Early-stage data pipeline for dengue data (Rio de Janeiro) built on Apache Airflow 3.3.2 + Postgres 16, run via Docker Compose. Stage 1 (stack up, test DAG) and stages 2-3 (SINAN/SIH/população extraction, run by hand outside Docker) are done. Stage 4, orchestration, is in progress: `dags/dag_sinan_dengue.py`, `dags/dag_populacao_ibge.py` and `dags/dag_sih_dengue.py` wrap the extract/load code as real Airflow DAGs, each with a custom image (see below). `dag_populacao_ibge` was run end to end in Docker (6 anos, 92 municípios cada); `dag_sih_dengue` and `dag_sinan_dengue` parse but have not been triggered yet. There is no other application code, test suite, or linter yet; `plugins/` is empty. Comments in `docker-compose.yaml`/`Dockerfile` are in Portuguese; keep to that language for consistency.
+Early-stage data pipeline for dengue data (Rio de Janeiro) built on Apache Airflow 3.3.2 + Postgres 16, run via Docker Compose. Stage 1 (stack up, test DAG) and stages 2-3 (SINAN/SIH/população extraction, run by hand outside Docker) are done. Stage 4, orchestration, is in progress: `dags/dag_sinan_dengue.py`, `dags/dag_populacao_ibge.py` and `dags/dag_sih_dengue.py` wrap the extract/load code as real Airflow DAGs, each with a custom image (see below). All three DAGs were run end to end in Docker (população 6 anos x 92 municípios; SINAN 301.847 linhas; SIH 11 meses + 2024-07 `skipped`). There is no other application code, test suite, or linter yet; `plugins/` is empty. Comments in `docker-compose.yaml`/`Dockerfile` are in Portuguese; keep to that language for consistency.
 
 ## Commands
 
@@ -53,6 +53,7 @@ Resolved with two separate installs in the `Dockerfile`, not one:
 - The metadata DB is named `airflow` on the same Postgres, but `POSTGRES_DB` only creates `dengue_rj`; the `airflow` DB was created manually (`docker compose exec postgres createdb -U $POSTGRES_USER airflow`). A fresh `dengue_pgdata` volume needs this again before `airflow-init` succeeds.
 - `psycopg2` is in the stock image; `pandas`/`pyarrow`/`httpx` are now installed in the custom image's main env (see above) — no more need for `_PIP_ADDITIONAL_REQUIREMENTS`.
 - Use `@task.external_python`, NOT `from airflow.providers.standard.decorators.external_python import external_python_task`: o Airflow reenvia o código da função para a venv e só remove o decorador na forma `@task.external_python`; com o import do provider a venv quebra com `NameError: external_python_task is not defined`.
+- Nada do escopo do módulo da DAG (constantes, imports do topo) pode aparecer no corpo nem na assinatura (valores padrão) de uma `@task.external_python`: só o código da função vai para a venv, então `ano: int = ANO` dá `NameError: name 'ANO' is not defined`. Use literais e importe dentro da função.
 - O PySUS guarda config num DuckDB (`~/pysus/config.db`) que aceita um processo por vez: tasks mapeadas que chamam o PySUS precisam de `max_active_tis_per_dag=1` (já em `dag_populacao_ibge` e `dag_sih_dengue`), senão falham com `Conflicting lock`.
 - `/opt` é do root: o Dockerfile cria `/opt/pysus-venv` como root e entrega ao usuário `airflow` antes de criar a venv.
 - `.gitignore` ignores `.env`, `data/`, `logs/` and `__pycache__/`.
