@@ -1,4 +1,4 @@
-# Pipeline de Dengue — RJ
+# Pipeline de Dengue - RJ
 
 Pipeline de dados em **Airflow + Postgres + Docker** que cruza notificações de dengue
 (SINAN), internações hospitalares por dengue (SIH-RD) e população (IBGE) do Rio de
