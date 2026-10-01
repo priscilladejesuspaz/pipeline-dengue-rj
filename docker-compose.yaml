@@ -11,7 +11,7 @@ services:
       - dengue_pgdata:/var/lib/postgresql/data
 
   airflow-init:
-    image: apache/airflow:3.3.2
+    build: .
     depends_on:
       - postgres
     environment: &airflow-env
@@ -20,6 +20,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres   # usado por pipeline_dengue.load._conectar() dentro dos containers
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/   # tasks (scheduler) falam com a API por este endereço
       AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:-dev-only-jwt-secret-troque-em-producao}   # segredo igual em todos os serviços
@@ -30,9 +31,11 @@ services:
       - "airflow db migrate"
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
   airflow-api-server:                # interface web, em http://localhost:8080
-    image: apache/airflow:3.3.2
+    build: .
     depends_on:
       - airflow-init
     environment: *airflow-env        # "*airflow-env" reaproveita o bloco marcado acima, sem repetir
@@ -42,9 +45,11 @@ services:
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
   airflow-scheduler:                 # decide quando cada task deve rodar
-    image: apache/airflow:3.3.2
+    build: .
     depends_on:
       - airflow-init
     environment: *airflow-env
@@ -52,9 +57,11 @@ services:
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
   airflow-dag-processor:             # lê seus arquivos .py em /dags e interpreta as DAGs
-    image: apache/airflow:3.3.2
+    build: .
     depends_on:
       - airflow-init
     environment: *airflow-env
@@ -62,9 +69,11 @@ services:
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
   airflow-triggerer:                 # gerencia tasks "adiáveis" (espera assíncrona, sem gastar worker)
-    image: apache/airflow:3.3.2
+    build: .
     depends_on:
       - airflow-init
     environment: *airflow-env
@@ -72,6 +81,8 @@ services:
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
 volumes:
   dengue_pgdata:
